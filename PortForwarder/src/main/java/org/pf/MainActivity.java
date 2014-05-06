@@ -27,6 +27,8 @@ import android.view.MenuItem;
 import android.widget.TextView;
 import android.widget.EditText;
 import android.content.SharedPreferences;
+import android.content.Intent;
+
 import com.example.android.common.logger.Log;
 import com.example.android.common.logger.LogFragment;
 import com.example.android.common.logger.LogWrapper;
@@ -114,6 +116,15 @@ public class MainActivity extends FragmentActivity {
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
+    if (!isTaskRoot()) {
+      final Intent intent = getIntent();
+      final String intentAction = intent.getAction(); 
+      if (intent.hasCategory(Intent.CATEGORY_LAUNCHER) && intentAction != null && intentAction.equals(Intent.ACTION_MAIN)) {
+        finish();
+        return;       
+      }
+    }
+
     setContentView(R.layout.sample_main);
 
     // Initialize text fragment that displays intro text.
