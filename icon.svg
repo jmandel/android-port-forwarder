@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="744.09448819"
+   height="1052.3622047"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="icon.svg">
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="8"
+     inkscape:cx="229.9144"
+     inkscape:cy="584.18239"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="2560"
+     inkscape:window-height="1576"
+     inkscape:window-x="0"
+     inkscape:window-y="24"
+     inkscape:window-maximized="1" />
+  <defs
+     id="defs4">
+    <marker
+       inkscape:stockid="Arrow2Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow2Lend"
+       style="overflow:visible;">
+      <path
+         id="path4036"
+         style="fill-rule:evenodd;stroke-width:0.62500000;stroke-linejoin:round;"
+         d="M 8.7185878,4.0337352 L -2.2072895,0.016013256 L 8.7185884,-4.0017078 C 6.9730900,-1.6296469 6.9831476,1.6157441 8.7185878,4.0337352 z "
+         transform="scale(1.1) rotate(180) translate(1,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lstart"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Lstart"
+       style="overflow:visible">
+      <path
+         id="path4015"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1.0pt"
+         transform="scale(0.8) translate(12.5,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow2Lstart"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow2Lstart"
+       style="overflow:visible">
+      <path
+         id="path4033"
+         style="fill-rule:evenodd;stroke-width:0.62500000;stroke-linejoin:round"
+         d="M 8.7185878,4.0337352 L -2.2072895,0.016013256 L 8.7185884,-4.0017078 C 6.9730900,-1.6296469 6.9831476,1.6157441 8.7185878,4.0337352 z "
+         transform="scale(1.1) translate(1,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Lend"
+       style="overflow:visible;">
+      <path
+         id="path4018"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1.0pt;"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
+  </defs>
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       id="g9196"
+       inkscape:export-filename="/home/jmandel/smart/TCPPortForwarder/src/main/res/drawable-xxhdpi/ic_launcher.png"
+       inkscape:export-xdpi="153.14"
+       inkscape:export-ydpi="153.14">
+      <path
+         inkscape:export-ydpi="46.265015"
+         inkscape:export-xdpi="46.265015"
+         inkscape:export-filename="/home/jmandel/smart/TCPPortForwarder/src/main/res/drawable-mdpi/ic_launcher.png"
+         d="m 197.48482,491.34872 a 9.975256,9.975256 0 1 1 -19.95051,0 9.975256,9.975256 0 1 1 19.95051,0 z"
+         sodipodi:ry="9.975256"
+         sodipodi:rx="9.975256"
+         sodipodi:cy="491.34872"
+         sodipodi:cx="187.50957"
+         id="path2987-5"
+         style="color:#000000;fill:#2032b1;fill-opacity:1;fill-rule:nonzero;stroke:#080e6c;stroke-width:2.08999991;stroke-opacity:1;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+         sodipodi:type="arc"
+         transform="matrix(3.3060524,0,0,3.3060524,-395.5073,-1151.4707)" />
+      <path
+         inkscape:export-ydpi="46.265015"
+         inkscape:export-xdpi="46.265015"
+         inkscape:export-filename="/home/jmandel/smart/TCPPortForwarder/src/main/res/drawable-mdpi/ic_launcher.png"
+         sodipodi:nodetypes="ccccc"
+         d="m 188.38584,464.77089 82.77628,-29.90894 -34.02855,71.06359 c 1.04918,-32.18964 -18.87558,-42.94358 -48.74773,-41.15473 z"
+         style="fill:#ff4601;fill-opacity:1;fill-rule:evenodd;stroke-width:0.625;stroke-linejoin:round"
+         id="path8597"
+         inkscape:connector-curvature="0" />
+      <rect
+         inkscape:export-ydpi="46.265015"
+         inkscape:export-xdpi="46.265015"
+         inkscape:export-filename="/home/jmandel/smart/TCPPortForwarder/src/main/res/drawable-mdpi/ic_launcher.png"
+         y="428.63449"
+         x="186.75031"
+         height="84.625771"
+         width="84.625771"
+         id="rect8609"
+         style="color:#000000;fill:none;stroke:none;stroke-width:8.76946259;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+    </g>
+  </g>
+</svg>

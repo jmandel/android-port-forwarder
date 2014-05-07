@@ -23,6 +23,7 @@ import android.os.Handler;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.TypedValue;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -72,7 +73,7 @@ public class MainActivity extends FragmentActivity {
     int localPort;
     String remoteHost;
     BroadcastReceiver updateReceiver = null;
-
+    LocalBroadcastManager bm;
 
     private void killThread(){
         Intent i=new Intent(this, PortForward.class);
@@ -103,18 +104,18 @@ public class MainActivity extends FragmentActivity {
 
     private void listenForUpdate() {
         try {
-            unregisterReceiver(updateReceiver);
+            bm.unregisterReceiver(updateReceiver);
         } catch (IllegalArgumentException e){ }
 
         IntentFilter f = new IntentFilter();
         f.addAction(MainActivity.USAGE_UPDATE);
-        registerReceiver(updateReceiver, f);
+        bm.registerReceiver(updateReceiver, f);
     }
 
     @Override
     protected void onPause(){
         super.onPause();
-        unregisterReceiver(updateReceiver);
+        bm.unregisterReceiver(updateReceiver);
     }
 
 
@@ -125,7 +126,6 @@ public class MainActivity extends FragmentActivity {
             finish();
             return;
         }
-        listenForUpdate();
 
         Log.d(TAG, "Creating Activity");
 
@@ -174,6 +174,10 @@ public class MainActivity extends FragmentActivity {
                 }
             }
         };
+
+        bm = LocalBroadcastManager.getInstance(this);
+
+        listenForUpdate();
 
     }
 

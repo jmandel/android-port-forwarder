@@ -8,6 +8,7 @@ import android.os.Handler;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Message;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 
@@ -22,211 +23,249 @@ import java.lang.Runnable;
 
 public class PortForward extends Service implements Runnable {
 
-    private static final String TAG = "Port Forward";
+  private static final String TAG = "Port Forward";
+
+  private int localPort;
+  private int remotePort;
+  private String remoteHost;
+  private boolean running = false;
+
+  private int lastUp = -1;
+  private int lastDown = -1;
+  private int bUp = 0;
+  private int bDown = 0;
+  LocalBroadcastManager bm;
+  private Thread t;
+
+  public Handler sendBroadcastHandler  = new Handler() {
+    public void handleMessage(Message msg) {
+      Intent i = new Intent().setAction(MainActivity.USAGE_UPDATE);
+      i.putExtra("bUp", bUp);
+      i.putExtra("bDown", bDown);
+      bm.sendBroadcast(i);
+    }
+  };
+
+ private void updateCounts() {
+    updateCounts(false);
+  }
+ 
+  private void updateCounts(boolean force) {
+    if (!force && (bUp - lastUp < 10000 && bDown - lastDown < 10000)) {
+      return;
+    }
+
+    lastUp = bUp;
+    lastDown = bDown;
+
+    Message msg = sendBroadcastHandler.obtainMessage();
+    sendBroadcastHandler.sendMessage(msg);
+  }
+
+  @Override
+  public void onDestroy() {
+    Log.d(TAG, "Service onDestroy");
+
+    if (t != null) {
+      t.interrupt();
+      try {
+        t.join();
+      } catch (InterruptedException e) {
+        Log.d(TAG, "couldn't join forwarder-thread");
+        System.exit(1);
+      }
+    }
+    Log.d(TAG, "Killed it");
+  }
+
+  @Override
+  public IBinder onBind(Intent intent) {
+    return null;
+  }
+
+  @Override
+  public int onStartCommand(Intent intent, int flags, int startId) {
+    Log.d(TAG, "Service onStart");
+
+    if (running){
+      updateCounts(true);
+      return START_REDELIVER_INTENT;
+    }
+    running = true;
+
+    bm = LocalBroadcastManager.getInstance(this);
+    localPort = intent.getIntExtra("localPort", -1);
+    remotePort = intent.getIntExtra("remotePort", -1);
+    remoteHost = intent.getStringExtra("remoteHost");
 
 
-    // 512KB buffers
-    private final ByteBuffer outgoingBuffer = ByteBuffer.allocate(512000);
-    private final ByteBuffer incomingBuffer = ByteBuffer.allocate(512000);
-    private int localPort;
-    private int remotePort;
-    private String remoteHost;
-    private boolean running = false;
+    t = new Thread(this);
+    t.start();
 
-    private int lastUp = -1;
-    private int lastDown = -1;
-    private int bUp = 0;
-    private int bDown = 0;
-
-    private Thread t;
-
-    public Handler sendBroadcastHandler  = new Handler() {
-        public void handleMessage(Message msg) {
-            Intent i = new Intent().setAction(MainActivity.USAGE_UPDATE);
-            i.putExtra("bUp", bUp);
-            i.putExtra("bDown", bDown);
-            sendBroadcast(i);
-        }
-    };
+    Log.d(TAG, "launching a thread");
 
 
-    private void updateCounts(boolean force) {
-        if (!force && (bUp - lastUp < 10000 && bDown - lastDown < 10000)) {
+    Notification note = new Notification.Builder(this)
+      .setContentTitle("Forwarding TCP Port")
+      .setContentText(String.format(
+            "localhost:%s -> %s:%s", localPort, remoteHost, remotePort))
+      .setSmallIcon(R.drawable.ic_launcher)
+      .build();
+
+    Intent i = new Intent(this, MainActivity.class);
+    i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+    PendingIntent pi = PendingIntent.getActivity(this, 0, i, 0);
+    note.contentIntent = pi;
+    note.flags |= Notification.FLAG_NO_CLEAR;
+    startForeground(1337, note);
+    Log.d(TAG, "doing startForeground");
+
+    updateCounts(true);
+
+    return START_REDELIVER_INTENT;
+  }
+
+  @Override
+  public void run() {
+    try {
+      System.out.println("Server online");
+      while (true) {
+
+        Selector selector = Selector.open();
+
+        ServerSocketChannel serverSocketChannel;
+        serverSocketChannel = ServerSocketChannel.open();
+        serverSocketChannel.socket().bind(new InetSocketAddress(localPort));
+        serverSocketChannel.configureBlocking(false);
+        serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+
+
+        System.out.println("Waiting for conn");
+
+        int scount = 0;
+        while (true) {
+          updateCounts();
+          boolean connOver = false;
+          scount++;
+          int readyChannels = selector.select();
+          if (Thread.currentThread().isInterrupted()) {
+            serverSocketChannel.close();
             return;
-        }
+          }
 
-        lastUp = bUp;
-        lastDown = bDown;
+          if (readyChannels == 0) {
+            continue;
+          }
 
-        Message msg = sendBroadcastHandler.obtainMessage();
-        sendBroadcastHandler.sendMessage(msg);
-    }
+          Set<SelectionKey> selectedKeys = selector.selectedKeys();
+          Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
 
-    @Override
-    public void onDestroy() {
-        Log.d(TAG, "Service onDestroy");
+          while (keyIterator.hasNext()) {
+            //System.out.println("Ready on " + readyChannels);
 
-        if (t != null) {
-            t.interrupt();
-            try {
-                t.join();
-            } catch (InterruptedException e) {
-                Log.d(TAG, "couldn't join forwarder-thread");
-                System.exit(1);
-            }
-        }
-        Log.d(TAG, "Killed it");
-    }
+            SelectionKey key = keyIterator.next();
+            keyIterator.remove();
 
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
-    }
+            if (!key.isValid()) {
+              continue;
+            } else if (key.isAcceptable()) {
+              System.out.println("Acceptable!");
 
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        Log.d(TAG, "Service onStart");
+              PFGroup g = new PFGroup();
 
+              // 512KB buffers
+              g.iBuffer = ByteBuffer.allocate(512000);
+              g.oBuffer = ByteBuffer.allocate(512000);
+              g.iChannel = serverSocketChannel.accept();
+              boolean iConnected = g.iChannel.finishConnect();
+	      if (iConnected){
+              	g.sidesOn++;
+	      }
+              g.iChannel.configureBlocking(false);
+              g.iKey = g.iChannel.register(selector, 0, g);
 
-        if (running) return START_REDELIVER_INTENT;
-        running = true;
+              g.oChannel = SocketChannel.open();
+              g.oChannel.configureBlocking(false);
+              g.oChannel.connect(new InetSocketAddress(remoteHost, remotePort));
+              g.oKey =g.oChannel.register(selector, SelectionKey.OP_CONNECT, g);
 
-        this.localPort = intent.getIntExtra("localPort", -1);
-        this.remotePort = intent.getIntExtra("remotePort", -1);
-        this.remoteHost = intent.getStringExtra("remoteHost");
+            } else if (key.isConnectable()) {
+              System.out.println("connectable!");
+              SocketChannel c = (SocketChannel) key.channel();
 
+              PFGroup g = (PFGroup)key.attachment();
+              if (!c.finishConnect()) {
+                System.out.println("couldn't finish conencting");
+                continue;
+              }
+              g.sidesOn++;
+              System.out.println("Initilized the bidirectional forward");
+              key.interestOps(SelectionKey.OP_READ);
+              g.iKey = g.iChannel.register(selector, SelectionKey.OP_READ, g);
+            } else if (key.isReadable()) {
 
-        t = new Thread(this);
-        t.start();
+              ByteBuffer b = null;
+              SocketChannel from = null;
+              SocketChannel to = null;
+              PFGroup g = (PFGroup)key.attachment();
+              String label = null;
+              if (key.channel() == g.iChannel){
+                from = g.iChannel;
+                to = g.oChannel;
+                b = g.iBuffer;
+                label = "incoming";
+              } else if (key.channel() == g.oChannel){
+                from = g.oChannel;
+                to = g.iChannel;
+                b = g.oBuffer;
+                label = "outgoing";
+              } 
 
-        Log.d(TAG, "launching a thread");
-
-
-        Notification note = new Notification.Builder(this)
-                .setContentTitle("Forwarding TCP Port")
-                .setContentText(String.format(
-                        "localhost:%s -> %s:%s", localPort, remoteHost, remotePort))
-                .setSmallIcon(R.drawable.ic_launcher)
-                .build();
-
-        Intent i = new Intent(this, MainActivity.class);
-        i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        PendingIntent pi = PendingIntent.getActivity(this, 0, i, 0);
-        note.contentIntent = pi;
-        note.flags |= Notification.FLAG_NO_CLEAR;
-        startForeground(1337, note);
-        Log.d(TAG, "doing startForeground");
-
-        updateCounts(true);
-
-        return START_REDELIVER_INTENT;
-    }
-
-    @Override
-    public void run() {
-        try {
-            System.out.println("Server online");
-            while (true) {
-                SocketChannel incomingChannel;
-                SocketChannel outgoingChannel;
-
-                ServerSocketChannel serverSocketChannel;
-                serverSocketChannel = ServerSocketChannel.open();
-                serverSocketChannel.socket().bind(new InetSocketAddress(localPort));
-
-                Selector selector = Selector.open();
-
-                incomingChannel = serverSocketChannel.accept();
-                outgoingChannel = SocketChannel.open();
-
-                outgoingChannel.configureBlocking(false);
-                SelectionKey outgoingKey = outgoingChannel.register(selector, SelectionKey.OP_CONNECT, outgoingBuffer);
-                outgoingChannel.connect(new InetSocketAddress(remoteHost, remotePort));
-
-                incomingChannel.configureBlocking(false);
-
-                System.out.println("Waiting for conn");
-
-                int scount = 0;
-                while (true) {
-
-                    boolean connOver = false;
-                    scount++;
-                    int readyChannels = selector.select();
-                    if (Thread.currentThread().isInterrupted()) {
-                        incomingChannel.close();
-                        outgoingChannel.close();
-                        serverSocketChannel.close();
-                        return;
-                    }
-
-                    if (readyChannels == 0) {
-                        continue;
-                    }
-
-                    Set<SelectionKey> selectedKeys = selector.selectedKeys();
-                    Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
-
-                    while (keyIterator.hasNext()) {
-                        System.out.println("Ready on " + readyChannels);
-
-                        SelectionKey key = keyIterator.next();
-                        keyIterator.remove();
-
-                        if (!key.isValid()) {
-                            continue;
-                        } else if (key.isConnectable()) {
-                            System.out.println("connectable!");
-                            SocketChannel c = (SocketChannel) key.channel();
-                            if (!c.finishConnect()) {
-                                System.out.println("coudnl't finish conencting");
-                                continue;
-                            }
-                            incomingChannel.register(selector, SelectionKey.OP_READ, incomingBuffer);
-                            outgoingChannel.register(selector, SelectionKey.OP_READ, outgoingBuffer);
-                        } else if (key.isReadable()) {
-                            int i = ((SocketChannel) key.channel()).read((ByteBuffer) key.attachment());
-                            if (key.channel() == outgoingChannel) {
-                                outgoingBuffer.flip();
-                                while (outgoingBuffer.hasRemaining()) {
-                                    bDown += incomingChannel.write(outgoingBuffer);
-                                }
-                                outgoingBuffer.clear();
-                            }
-                            if (key.channel() == incomingChannel) {
-                                incomingBuffer.flip();
-                                while (incomingBuffer.hasRemaining()) {
-                                    bUp += outgoingChannel.write(incomingBuffer);
-                                }
-                                incomingBuffer.clear();
-                            }
-
-                            if (i == -1) {
-                                System.out.println("Done, closing keys");
-                                incomingChannel.close();
-                                outgoingChannel.close();
-                                connOver = true;
-                            }
-                        }
-
-                    }
-
-                    updateCounts(false);
-
-                    if (connOver) {
-                        serverSocketChannel.close();
-                        break;
-                    }
-
+              int i = from.read(b);
+              System.out.println("Read " + i + " " + label);
+              b.flip();
+              while (b.hasRemaining()) {
+                int bytes = to.write(b);
+                if(label.equals("incoming")){
+                  bUp += bytes;
+                } else {
+                  bDown += bytes;
                 }
-
-                System.out.println("Done");
+              }
+              b.clear();
+              if (i == -1) {
+		key.cancel();
+		g.sidesOn--;
+		if (g.sidesOn == 0){
+		System.out.println("Done, closing keys");
+                from.close();
+                to.close();
+                connOver = true;
+		}
+              }
             }
-        } catch (IOException e) {
 
-            System.out.println("ioexception");
-            e.printStackTrace();
-
+          }
         }
+      }
+    } catch (IOException e) {
+
+      System.out.println("ioexception");
+      e.printStackTrace();
+
     }
+
+
+  }
+
+  public class PFGroup {
+    public ByteBuffer iBuffer;
+    public ByteBuffer oBuffer;
+    public SocketChannel iChannel;
+    public SocketChannel oChannel;
+    public int sidesOn = 0;
+    SelectionKey iKey;
+    SelectionKey oKey;
+  }
+
 }

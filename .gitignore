@@ -2,5 +2,8 @@
 build/*
 .idea
 *.swp
+*.swo
+*.swn
 .gradle
 signing
+local.properties

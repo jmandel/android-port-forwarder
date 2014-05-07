@@ -33,6 +33,11 @@ android {
 
     buildToolsVersion "19.0.1"
 
+    defaultConfig {
+        versionCode 5
+        versionName "1.0.5"
+    }
+
     signingConfigs{
         release{
             storeFile null
