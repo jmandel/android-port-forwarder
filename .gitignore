@@ -1,3 +1,6 @@
-PortForwarder/build/*
+*.class
+build/*
 .idea
+*.swp
 .gradle
+signing
