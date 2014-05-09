@@ -40,6 +40,8 @@ public class PortForward extends Service implements Runnable {
   LocalBroadcastManager bm;
   private Thread t;
 
+  ServerSocketChannel serverSocketChannel = null;
+
   public Handler sendBroadcastHandler  = new Handler() {
     public void handleMessage(Message msg) {
       Intent i = new Intent().setAction(MainActivity.USAGE_UPDATE);
@@ -61,8 +63,6 @@ public class PortForward extends Service implements Runnable {
       NotificationManager mNotificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
       mNotificationManager.notify(1338, note);
-
-
     }
   };
 
@@ -145,56 +145,117 @@ public class PortForward extends Service implements Runnable {
     return START_REDELIVER_INTENT;
   }
 
+  private void reportException(Exception e){
+    StringWriter sw = new StringWriter();
+    e.printStackTrace(new PrintWriter(sw));
+    Message msg = sendDeathHandler.obtainMessage();
+    Bundle b = msg.getData();
+    b.putString("causeOfDeath", sw.toString());
+    sendDeathHandler.sendMessage(msg);
+  }
+
+  private void finish(Selector s){
+    try {
+      serverSocketChannel.close();
+    } catch (IOException e){ }
+
+    Set<SelectionKey> selectedKeys = s.keys();
+    Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
+    while (keyIterator.hasNext()) {
+      closeConnectionForKey(keyIterator.next());
+    }
+  }
+
+
+  private void closeChannel(SocketChannel c){
+    if (c != null){
+      try {
+        if (c != null){
+          c.close();
+        }
+      } catch (IOException e){ }
+
+    }
+  }
+
+  private void closeConnectionForKey(SelectionKey key){
+    PFGroup g = null;
+    try { 
+      g = (PFGroup)key.attachment();
+    } catch (Exception e){
+      return;
+    }
+    if (g == null) {return;}
+    closeChannel(g.iChannel);
+    closeChannel(g.oChannel);
+  }
+
   @Override
   public void run() {
     String causeOfDeath = null;
-    try {
-      System.out.println("Server online");
-      Selector selector = Selector.open();
+    System.out.println("Server online");
+    Selector selector = null;
 
-      ServerSocketChannel serverSocketChannel;
+    try {
+      selector = Selector.open();
       serverSocketChannel = ServerSocketChannel.open();
       serverSocketChannel.socket().bind(new InetSocketAddress(localPort));
       serverSocketChannel.configureBlocking(false);
       serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
-      System.out.println("Server socket bound.");
+    } catch (IOException e) {
+      reportException(e);
+      return;
+    }
 
-      while (true) {
-        System.out.println("Waiting for conn");
 
-        updateCounts();
-        boolean connOver = false;
-        int readyChannels = selector.select();
-        if (Thread.currentThread().isInterrupted()) {
-          serverSocketChannel.close();
-          return;
-        }
+    System.out.println("Server socket bound.");
 
-        if (readyChannels == 0) {
+    while (true) {
+      System.out.println("Waiting for conn");
+
+      updateCounts();
+      int readyChannels = 0;
+
+      try {
+        readyChannels = selector.select();
+      } catch (IOException e) {
+        reportException(e);
+        continue;
+      }
+
+      if (Thread.currentThread().isInterrupted()) {
+        finish(selector);
+        return;
+      }
+
+      if (readyChannels == 0) {
+        continue;
+      }
+
+      Set<SelectionKey> selectedKeys = selector.selectedKeys();
+      Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
+
+      while (keyIterator.hasNext()) {
+        //System.out.println("Ready on " + readyChannels);
+
+        SelectionKey key = keyIterator.next();
+        keyIterator.remove();
+
+        if (!key.isValid()) {
           continue;
-        }
+        } else if (key.isAcceptable()) {
+          System.out.println("Acceptable!");
 
-        Set<SelectionKey> selectedKeys = selector.selectedKeys();
-        Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
+          PFGroup g = new PFGroup();
 
-        while (keyIterator.hasNext()) {
-          //System.out.println("Ready on " + readyChannels);
+          // 512KB buffers
+          g.iBuffer = ByteBuffer.allocate(512000);
+          g.oBuffer = ByteBuffer.allocate(512000);
+          boolean iConnected = false;
 
-          SelectionKey key = keyIterator.next();
-          keyIterator.remove();
-
-          if (!key.isValid()) {
-            continue;
-          } else if (key.isAcceptable()) {
-            System.out.println("Acceptable!");
-
-            PFGroup g = new PFGroup();
-
-            // 512KB buffers
-            g.iBuffer = ByteBuffer.allocate(512000);
-            g.oBuffer = ByteBuffer.allocate(512000);
+          try {
             g.iChannel = serverSocketChannel.accept();
-            boolean iConnected = g.iChannel.finishConnect();
+            iConnected = g.iChannel.finishConnect();
             if (iConnected){
               g.sidesOn++;
             }
@@ -205,9 +266,14 @@ public class PortForward extends Service implements Runnable {
             g.oChannel.configureBlocking(false);
             g.oChannel.connect(new InetSocketAddress(remoteHost, remotePort));
             g.oKey =g.oChannel.register(selector, SelectionKey.OP_CONNECT, g);
+          } catch (IOException e) {
+            continue;
+          }
 
-          } else if (key.isConnectable()) {
-            System.out.println("connectable!");
+
+        } else if (key.isConnectable()) {
+          System.out.println("connectable!");
+          try {
             SocketChannel c = (SocketChannel) key.channel();
 
             PFGroup g = (PFGroup)key.attachment();
@@ -219,7 +285,13 @@ public class PortForward extends Service implements Runnable {
             System.out.println("Initilized the bidirectional forward");
             key.interestOps(SelectionKey.OP_READ);
             g.iKey = g.iChannel.register(selector, SelectionKey.OP_READ, g);
-          } else if (key.isReadable()) {
+          } catch (IOException e) {
+            continue;
+          }
+
+        } else if (key.isReadable()) {
+
+          try {
 
             ByteBuffer b = null;
             SocketChannel from = null;
@@ -254,30 +326,16 @@ public class PortForward extends Service implements Runnable {
               g.sidesOn--;
               if (g.sidesOn == 0){
                 System.out.println("Done, closing keys");
-                from.close();
-                to.close();
-                connOver = true;
+                closeConnectionForKey(key);
               }
             }
+          } catch (IOException e){
+            Log.d(TAG, "closing connection for key.");
+            closeConnectionForKey(key);
           }
-
         }
       }
-    } catch (IOException e) {
-      StringWriter sw = new StringWriter();
-      e.printStackTrace(new PrintWriter(sw));
-      causeOfDeath = sw.toString();
-      System.out.println("Cause of daeth: " + causeOfDeath);
-    } finally {
-      if (causeOfDeath != null) {
-        Message msg = sendDeathHandler.obtainMessage();
-        Bundle b = msg.getData();
-        b.putString("causeOfDeath", causeOfDeath);
-        sendDeathHandler.sendMessage(msg);
-      }
     }
-
-
   }
 
   public class PFGroup {
