@@ -43,7 +43,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <service android:name="org.pf.PortForward" />
+        <service android:name="org.pf.PortForward" android:stopWithTask="true"/>
 
     </application>
 </manifest>

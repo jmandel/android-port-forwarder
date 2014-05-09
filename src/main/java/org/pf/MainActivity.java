@@ -81,9 +81,9 @@ public class MainActivity extends FragmentActivity {
     }
 
     private void readTextViews(){
-        remotePort = Integer.parseInt(remotePortView.getText().toString());
-        localPort = Integer.parseInt(localPortView.getText().toString());
-        remoteHost = remoteHostView.getText().toString();
+        remotePort = Integer.parseInt(remotePortView.getText().toString().trim());
+        localPort = Integer.parseInt(localPortView.getText().toString().trim());
+        remoteHost = remoteHostView.getText().toString().trim();
     }
 
     private void newThread(){
